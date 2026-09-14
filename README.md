@@ -15,9 +15,9 @@ Local agent → local MCP process (stdio) → hosted paper brokerage (HTTPS)
 
 Requirements: Node.js **20.19 or newer** and npm on the machine running your MCP client.
 
-**Release status: npm publication is pending.** The npm configuration below becomes usable after `@krh1996/paper-trading-mcp@0.2.1` is published. Until then, use [source installation](#install-from-source).
+**Release status: npm publication is pending.** The npm configuration below becomes usable after `@hkrds1996/paper-trading-mcp@0.2.1` is published. Until then, use [source installation](#install-from-source).
 
-The client runs `npx -y @krh1996/paper-trading-mcp@0.2.1`. npm downloads the package when needed and launches it; no repository checkout, absolute script path, or separate running terminal is required. The version is pinned so updates are deliberate. Installing the package does not create an account or issue a token.
+The client runs `npx -y @hkrds1996/paper-trading-mcp@0.2.1`. npm downloads the package when needed and launches it; no repository checkout, absolute script path, or separate running terminal is required. The version is pinned so updates are deliberate. Installing the package does not create an account or issue a token.
 
 ## Create an account token
 
@@ -46,7 +46,7 @@ For a client using the common `mcpServers` format:
   "mcpServers": {
     "paper-trading": {
       "command": "npx",
-      "args": ["-y", "@krh1996/paper-trading-mcp@0.2.1"],
+      "args": ["-y", "@hkrds1996/paper-trading-mcp@0.2.1"],
       "env": {
         "PAPER_TRADING_TOKEN": "YOUR_PAPER_TRADING_TOKEN"
       }
@@ -72,7 +72,7 @@ Your client starts the process and communicates over standard input/output. You 
 With `PAPER_TRADING_TOKEN` or `PAPER_TRADING_TOKEN_FILE` already supplied in your environment, run:
 
 ```sh
-npx -y @krh1996/paper-trading-mcp@0.2.1 --check
+npx -y @hkrds1996/paper-trading-mcp@0.2.1 --check
 ```
 
 For source installation, use `node bin/paper-trading-mcp.js --check` from the checkout instead.

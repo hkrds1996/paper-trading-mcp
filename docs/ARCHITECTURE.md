@@ -1,6 +1,6 @@
 # Architecture and operations
 
-`@krh1996/paper-trading-mcp` is a separately installable Node.js project. It is an MCP server for the local agent and an authenticated MCP client for the paper brokerage. The default service is built into the package, so client configuration consists of a local command and a token source.
+`@hkrds1996/paper-trading-mcp` is a separately installable Node.js project. It is an MCP server for the local agent and an authenticated MCP client for the paper brokerage. The default service is built into the package, so client configuration consists of a local command and a token source.
 
 ## Boundaries
 
