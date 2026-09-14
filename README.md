@@ -2,7 +2,7 @@
 
 Connect a local AI agent to your KH paper trading account with a standard MCP `stdio` server. Your client launches a local Node.js process; configure a command and a paper token, without entering a hosted endpoint URL.
 
-The package supports stock orders, standard stock/ETF options, custom spreads, account history, and competition standings. It connects to the hosted paper brokerage, which remains responsible for balances, quotes, execution, collateral, and scores. Internet access is required; this is not an offline trading simulator or a real-money brokerage.
+The package supports stock orders, standard stock/ETF options, custom spreads, account history, and competition standings. It connects to the hosted paper brokerage, which remains responsible for balances, internal pricing, execution, collateral, and scores. Agents receive stored account records and contract metadata; they do not receive quotes, price previews, equity, market values, or profit-and-loss data. Internet access is required; this is not an offline trading simulator or a real-money brokerage.
 
 ```text
 Local agent → local MCP process (stdio) → hosted paper brokerage (HTTPS)
@@ -27,7 +27,7 @@ This project has its own dependencies and needs no checkout of the backend or fr
 ## Create an account token
 
 1. Open the [paper trading dashboard](https://krh1996.com/#/paper-trading), create a practice account or join a competition, and open its MCP access screen.
-2. Choose an account and either **Read only** or **Read portfolio & place paper orders**, then create an access token.
+2. Choose an account and either **Read only** or **Read account records & place paper orders**, then create an access token.
 3. Save the token when it appears; the dashboard shows its value once. Store only the token itself in a private UTF-8 text file, such as `/Users/YOUR_USER/.config/paper-trading/token`. A trailing newline is accepted.
 
 On macOS/Linux, give only your user access to that file:
@@ -36,7 +36,7 @@ On macOS/Linux, give only your user access to that file:
 chmod 600 /absolute/path/to/paper-trading-token
 ```
 
-On Windows, restrict the file's security permissions to your account. Keep the file outside shared repositories. This local project uses the paper token only; users do not need Alpaca keys, database credentials, or backend source code.
+On Windows, restrict the file's security permissions to your account. Keep the file outside shared repositories. This local project uses the paper token only; users do not need market-data provider keys, database credentials, or backend source code.
 
 ## Configure your local agent
 
@@ -90,7 +90,7 @@ A successful check prints JSON with `ok: true`, `mode: "paper"`, and the number 
 
 Then ask your agent:
 
-> List my paper account, read its trading rules, and show its positions and buying power. Do not place an order.
+> List my paper account, read its trading rules, and show its cash, position quantities, cost basis, orders, and recorded fills. Do not place an order.
 
 See the [tool reference and order examples](docs/TOOLS.md) for stock orders, multi-leg orders, pagination, and retry handling.
 
@@ -111,7 +111,7 @@ Every participant in a competition receives the same competition-defined startin
 
 New `portfolio-margin-v2` accounts support custom orders of up to 16 legs, including long/short standard options and spreads, subject to collateral and account rules. Existing `cash-long-v1` accounts retain their original restrictions. This package exposes the same rules as the dashboard; it does not remove backend limits. Index/futures options, adjusted contracts, and physical exercise/assignment are not supported.
 
-The agent's tool arguments and the paper token are sent to the configured backend over HTTPS by default; returned account and market data go back to your agent client. The package does not store a second ledger or require any brokerage credentials locally. Market quotes and simulated execution depend on the provider configuration of the backend you connect to.
+The agent's tool arguments and the paper token are sent to the configured backend over HTTPS by default; stored account records, order outcomes, and option contract metadata go back to your agent client. The package does not store a second ledger or require any brokerage credentials locally. Simulated execution depends on the provider configuration of the backend you connect to. No quote or order-price-preview tools are exposed. Owner dashboards read separately persisted valuation snapshots and label their source and age; refreshing the dashboard does not request current prices.
 
 ## Troubleshooting
 
@@ -122,7 +122,7 @@ The agent's tool arguments and the paper token are sent to the configured backen
 | Token file rejected | Check the absolute path, file size, UTF-8 plain token content, and permissions. On macOS/Linux use `chmod 600`. |
 | Authentication fails | Create a new token for the intended account, replace the file, and restart the client server. Do not share token values in logs or issue reports. |
 | Reads work but trades fail | Confirm the token has trade permission and inspect `paper_get_trading_rules`; competition windows and collateral still apply. |
-| Quotes or orders unavailable | The backend operator must configure its market data provider. Local agents do not need provider keys. |
+| Orders unavailable | The backend operator must configure its market data provider. Local agents do not need provider keys. |
 | Timeout after placing an order | Its outcome may be unknown. Read orders/fills before retrying, and reuse the same `clientOrderId` and order content. Never create a fresh order ID merely because a response was lost. |
 
 ## Development

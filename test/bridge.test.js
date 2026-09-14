@@ -57,7 +57,7 @@ async function upstream(t) {
     }
     const sdk = new Server({ name: 'fixture-paper', version: '1.0.0' }, { capabilities: { tools: {} } });
     sdk.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: [...PAPER_TOOLS, 'admin_reset_balance'].map(name => ({ name, description: state.mode === 'large' && name === 'paper_list_accounts' ? 'x'.repeat(4 * 1024 * 1024) : name, inputSchema: name === 'paper_place_order' || name === 'paper_preview_order' ? orderSchema : { type: 'object', additionalProperties: false, properties: {} }, annotations: { readOnlyHint: name !== 'paper_place_order', idempotentHint: true } })),
+      tools: [...PAPER_TOOLS, 'admin_reset_balance', 'paper_get_quotes', 'paper_preview_order'].map(name => ({ name, description: state.mode === 'large' && name === 'paper_list_accounts' ? 'x'.repeat(4 * 1024 * 1024) : name, inputSchema: name === 'paper_place_order' ? orderSchema : { type: 'object', additionalProperties: false, properties: {} }, annotations: { readOnlyHint: name !== 'paper_place_order', idempotentHint: true } })),
       _meta: { source: 'fixture' },
     }));
     sdk.setRequestHandler(CallToolRequestSchema, async request => {
@@ -122,22 +122,26 @@ test('local initialization works while upstream is offline and stdout remains MC
   assert.deepEqual(protocolErrors, []);
 });
 
-test('discovers only 13 paper tools and preserves strict nested schemas, annotations and metadata', async t => {
+test('discovers only 11 execution/account-record tools and preserves strict nested schemas, annotations and metadata', async t => {
   const fixture = await upstream(t); const { client } = await local(t, fixture);
   assert.equal(fixture.requests.length, 0, 'local initialization must not contact upstream');
   const result = await client.listTools();
-  assert.equal(result.tools.length, 13);
+  assert.equal(result.tools.length, 11);
   assert.deepEqual(result.tools.find(tool => tool.name === 'paper_place_order').inputSchema, orderSchema);
   assert.deepEqual(result.tools.find(tool => tool.name === 'paper_place_order').annotations, { readOnlyHint: false, idempotentHint: true });
   assert.deepEqual(result._meta, { source: 'fixture' });
   assert.ok(fixture.requests.every(req => req.authorization === `Bearer ${TOKEN}`));
-  const denied = await client.callTool({ name: 'admin_reset_balance', arguments: {} });
-  assert.equal(denied.isError, true); assert.equal(fixture.calls.length, 0);
+  for (const name of ['admin_reset_balance','paper_get_quotes','paper_preview_order']) {
+    const denied = await client.callTool({ name, arguments: {} });
+    assert.equal(denied.isError, true);
+    assert.match(denied.content[0].text, /UNKNOWN_TOOL/);
+  }
+  assert.equal(fixture.calls.length, 0);
 });
 
-test('custom multi-leg previews and orders preserve exact fields, stable IDs, results and domain errors', async t => {
+test('custom multi-leg orders preserve exact fields, stable IDs, results and domain errors', async t => {
   const fixture = await upstream(t); const { client } = await local(t, fixture);
-  for (const name of ['paper_preview_order', 'paper_place_order']) {
+  for (const name of ['paper_place_order']) {
     const result = await client.callTool({ name, arguments: combo, _meta: { correlation: 'a' } });
     assert.deepEqual(result.structuredContent, { mode: 'paper', echoed: combo });
     assert.deepEqual(result._meta, { source: 'fixture', trace: 'safe-trace' });
@@ -155,7 +159,7 @@ test('token file authentication handles private files, missing files and oversiz
   const transport = new StdioClientTransport({ command: process.execPath, args: [BIN], env: { PAPER_TRADING_TOKEN_FILE: tokenFile, PAPER_TRADING_MCP_URL: fixture.url }, stderr: 'pipe' });
   let stderr = ''; transport.stderr.on('data', chunk => { stderr += chunk; });
   t.after(async () => { await client.close(); assert.ok(!stderr.includes(TOKEN)); });
-  await client.connect(transport); assert.equal((await client.listTools()).tools.length, 13);
+  await client.connect(transport); assert.equal((await client.listTools()).tools.length, 11);
   await assert.rejects(loadConfiguration({ PAPER_TRADING_TOKEN_FILE: join(dir, 'missing') }), /Cannot read/);
   await assert.rejects(loadConfiguration({ PAPER_TRADING_TOKEN_FILE: 'relative.token' }), /absolute/);
   await assert.rejects(loadConfiguration({ PAPER_TRADING_TOKEN_FILE: dir }), /regular text file/);
@@ -235,13 +239,13 @@ test('EOF and SIGTERM close a local process cleanly; help/version need no creden
   await once(child.stdout, 'data'); child.kill('SIGTERM');
   const [code, signal] = await once(child, 'exit'); assert.equal(code, 0); assert.equal(signal, null);
   assert.match((await rawCLI(['--help'])).stdout, /PAPER_TRADING_TOKEN_FILE/);
-  assert.equal((await rawCLI(['--version'])).stdout, '0.1.0\n');
+  assert.equal((await rawCLI(['--version'])).stdout, '0.2.0\n');
 });
 
 test('--check is read-only discovery and returns a redacted diagnostic', async t => {
   const fixture = await upstream(t);
   const result = await rawCLI(['--check'], { PAPER_TRADING_TOKEN: TOKEN, PAPER_TRADING_MCP_URL: fixture.url });
-  assert.equal(result.code, 0); assert.deepEqual(JSON.parse(result.stdout), { ok: true, mode: 'paper', tools: 13 });
+  assert.equal(result.code, 0); assert.deepEqual(JSON.parse(result.stdout), { ok: true, mode: 'paper', tools: 11 });
   assert.equal(fixture.calls.length, 0); assert.equal(result.stderr, '');
   fixture.mode = '401';
   const rejected = await rawCLI(['--check'], { PAPER_TRADING_TOKEN: TOKEN, PAPER_TRADING_MCP_URL: fixture.url });

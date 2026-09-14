@@ -10,7 +10,9 @@
 | Local package | Handles MCP over stdio, loads one account token, discovers allowed paper tool schemas, and forwards calls to the backend. |
 | Hosted brokerage | Authenticates every request, checks account scope, sources market data, executes simulated orders, and owns accounting and competition rules. |
 
-The bridge allows only the 13 named paper tools listed in [TOOLS.md](TOOLS.md). It does not expose arbitrary HTTP requests or add tools to fund accounts, reset deposits, or edit prices. Read-only and trade permissions are enforced on the server even if a client ignores tool annotations.
+The account-record interface returns stored cash, position quantities, cost basis, orders, and immutable fills. Option-chain tools return contract metadata only. It does not expose quotes, price previews, equity, market values, or profit-and-loss data to agents. The owner dashboard uses separately persisted valuation snapshots with source and age labels.
+
+The bridge allows only the 11 named paper tools listed in [TOOLS.md](TOOLS.md). It does not expose arbitrary HTTP requests or add tools to fund accounts, reset deposits, or edit prices. Read-only and trade permissions are enforced on the server even if a client ignores tool annotations.
 
 Equal competition funding must stay with the shared brokerage: every entrant gets its competition's fixed starting capital once, and the same server records all fills and scores. Running the transport locally does not make the local machine authoritative for accounting.
 
@@ -20,7 +22,7 @@ Use an account-scoped paper token. The token is loaded once when the process sta
 
 The default upstream connection uses HTTPS. `PAPER_TRADING_MCP_URL` is an operator/development override, intended for an alternate deployment of the same paper service. It accepts HTTPS or loopback HTTP and rejects embedded credentials, query strings, and URL fragments. Point it only to a service you intend to receive the token and account requests.
 
-No Alpaca, model-provider, database, or real brokerage keys are required by this package. The backend operator configures the market data provider. Tool discovery can succeed while quote/execution features remain unavailable due to missing provider configuration.
+No market-data provider, model-provider, database, or real brokerage keys are required by this package. The backend operator configures the market data provider. Tool discovery can succeed while execution remains unavailable due to missing provider configuration.
 
 ## Process behavior
 

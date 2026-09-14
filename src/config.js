@@ -2,7 +2,7 @@ import { open } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { isAbsolute } from 'node:path';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
 export const DEFAULT_URL = 'https://api.krh1996.com/api/paper/mcp';
 export class ConfigurationError extends Error {}
 

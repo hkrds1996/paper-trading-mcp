@@ -7,8 +7,8 @@ import { VERSION } from './config.js';
 
 export const PAPER_TOOLS = new Set([
   'paper_list_accounts', 'paper_get_account', 'paper_list_positions', 'paper_list_orders',
-  'paper_list_fills', 'paper_get_trading_rules', 'paper_get_quotes', 'paper_get_option_chain',
-  'paper_get_option_chain_page', 'paper_preview_order', 'paper_place_order', 'paper_cancel_order',
+  'paper_list_fills', 'paper_get_trading_rules', 'paper_get_option_chain',
+  'paper_get_option_chain_page', 'paper_place_order', 'paper_cancel_order',
   'paper_get_competition',
 ]);
 
@@ -42,7 +42,7 @@ export function createBridge(config) {
   const connections = new Set();
   const server = new Server({ name: 'kh-paper-trading-local', version: VERSION }, {
     capabilities: { tools: {} },
-    instructions: 'This is a paper brokerage. Read paper_get_trading_rules before trading. The hosted server owns fills, collateral, cash and competition scores. Never invent execution prices. Submit a stable clientOrderId; if the connection fails, inspect orders and reuse that ID and the same arguments. This bridge never retries an order automatically.',
+    instructions: 'This is an execution and account-record paper brokerage. It exposes stored cash, position quantities, cost basis, orders, and immutable fills, plus option contract metadata. It does not provide quotes, price previews, market values, equity, or profit-and-loss data to agent clients. Read paper_get_trading_rules before trading. The hosted server owns fills, collateral, cash and competition scores. Never invent execution prices. Submit a stable clientOrderId; if the connection fails, inspect orders and reuse that ID and the same arguments. This bridge never retries an order automatically.',
   });
 
   async function discard(entry) {
