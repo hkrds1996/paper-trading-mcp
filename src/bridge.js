@@ -31,7 +31,10 @@ export function safeFailure(error, { mutation = false, cancelled = false } = {})
   else if (error?.name === 'TimeoutError' || status === ErrorCode.RequestTimeout) { code = 'REQUEST_TIMEOUT'; message = 'The paper trading request timed out. Check connectivity or increase PAPER_TRADING_TIMEOUT_MS.'; }
   else if (status === ErrorCode.InvalidParams) { code = 'INVALID_REQUEST'; message = 'The paper trading service rejected the request parameters. Read the tool schema and account trading rules.'; }
   if (mutation) message += ' The execution outcome may be unknown; no automatic retry was made. Read the account’s orders before retrying. For placement, reuse the same clientOrderId and arguments.';
-  return { code, message };
+  const retryAfterSeconds = Number(error?.retryAfterSeconds);
+  const hasRetry = status === 429 && Number.isSafeInteger(retryAfterSeconds) && retryAfterSeconds >= 1 && retryAfterSeconds <= 86400;
+  if (hasRetry) message += ` Wait at least ${retryAfterSeconds} seconds before retrying.`;
+  return { code, message, ...(hasRetry ? { retryAfterSeconds } : {}) };
 }
 
 /** Local transport only: execution, prices, risk, balances and scores remain hosted. */
@@ -61,10 +64,20 @@ export function createBridge(config) {
       requestInit: { headers: { Authorization: `Bearer ${config.token}` }, redirect: 'error', cache: 'no-store' },
       // Retries/resumption must never replay an ambiguous order submission.
       reconnectionOptions: { maxRetries: 0, initialReconnectionDelay: 1000, maxReconnectionDelay: 1000, reconnectionDelayGrowFactor: 1 },
-      fetch: (url, init = {}) => fetch(url, {
-        ...init, redirect: 'error', cache: 'no-store',
-        signal: AbortSignal.any([...(init.signal ? [init.signal] : []), AbortSignal.timeout(config.timeoutMs)]),
-      }),
+      fetch: async (url, init = {}) => {
+        const response = await fetch(url, {
+          ...init, redirect: 'error', cache: 'no-store',
+          signal: AbortSignal.any([...(init.signal ? [init.signal] : []), AbortSignal.timeout(config.timeoutMs)]),
+        });
+        if (response.status === 429) {
+          const raw = response.headers.get('retry-after') || '';
+          const seconds = /^\d+$/.test(raw) ? Number(raw) : Math.ceil((Date.parse(raw) - Date.now()) / 1000);
+          void response.body?.cancel().catch(() => {});
+          // Carry only the bounded retry interval, never an upstream error body.
+          throw Object.assign(new Error('Rate limited'), { code: 429, ...(Number.isSafeInteger(seconds) && seconds >= 1 && seconds <= 86400 ? { retryAfterSeconds: seconds } : {}) });
+        }
+        return response;
+      },
     });
     client.onerror = () => {}; // SDK errors may contain upstream bodies or credentials.
     client.onclose = () => { entry.invalid = true; if (current === entry) current = undefined; };
@@ -132,7 +145,7 @@ export function createBridge(config) {
       return await run((client, options) => client.callTool(request.params, undefined, options), extra.signal);
     } catch (error) {
       const safe = safeFailure(error, { mutation: name === 'paper_place_order' || name === 'paper_cancel_order', cancelled: extra.signal.aborted });
-      return { isError: true, content: [{ type: 'text', text: JSON.stringify({ success: false, code: safe.code, error: safe.message }) }] };
+      return { isError: true, content: [{ type: 'text', text: JSON.stringify({ success: false, code: safe.code, error: safe.message, ...(safe.retryAfterSeconds ? { retryAfterSeconds: safe.retryAfterSeconds } : {}) }) }] };
     }
   });
 

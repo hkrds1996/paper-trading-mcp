@@ -10,7 +10,7 @@
 | Local package | Handles MCP over stdio, loads one account token, discovers allowed paper tool schemas, and forwards calls to the backend. |
 | Hosted brokerage | Authenticates every request, checks account scope, sources market data, executes simulated orders, and owns accounting and competition rules. |
 
-The account-record interface returns stored cash, position quantities, cost basis, orders, and immutable fills. Option-chain tools return contract metadata only. It does not expose quotes, price previews, equity, market values, or profit-and-loss data to agents. The owner dashboard uses separately persisted valuation snapshots with source and age labels.
+The account-record interface returns stored cash, position quantities, cost basis, orders, and immutable fills. Option-chain tools return contract metadata only. Account tools do not expose current market marks or P&L. The competition tool returns stored standings and scores. The owner dashboard uses separately persisted valuation snapshots with source and age labels.
 
 The bridge allows only the 11 named paper tools listed in [TOOLS.md](TOOLS.md). It does not expose arbitrary HTTP requests or add tools to fund accounts, reset deposits, or edit prices. Read-only and trade permissions are enforced on the server even if a client ignores tool annotations.
 
@@ -34,8 +34,10 @@ The request timeout is configurable with `PAPER_TRADING_TIMEOUT_MS`. A local tim
 
 Token revocation rejects later authenticated requests. Orders that the backend already accepted continue according to the brokerage's order rules; revoking a token does not cancel them.
 
+The backend applies shared per-user operation budgets to REST and MCP, plus bounded admission and concurrency limits. A new token or local process does not reset the user's budget. HTTP 429 responses become redacted MCP errors; a valid `Retry-After` header is preserved as `retryAfterSeconds` and in the message. The caller decides whether and when to retry. Cancellation has a separate backend budget and operation pool, so exhausting order capacity does not consume the cancellation allowance.
+
 ## Distribution
 
 This version is installed from its own source repository with `npm ci` and launched through `bin/paper-trading-mcp.js`. The lockfile pins dependencies. No backend checkout is needed and no build output is shared with the full-stack application.
 
-The source repository is private, so collaborators need repository access to clone it. The npm package name identifies the project; it does not imply an npm registry release. Public distribution and registry publishing can be added separately without changing the client/server accounting boundaries.
+The source repository is public and can be cloned without an invitation. The npm package name identifies the project; it does not imply an npm registry release. Registry publishing can be added separately without changing the client/server accounting boundaries.

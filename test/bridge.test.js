@@ -47,6 +47,7 @@ async function upstream(t) {
     if (req.url === '/redirect-target') { state.redirects++; res.writeHead(500).end('must not reach'); return; }
     if (state.mode === 'redirect') { res.writeHead(307, { Location: `${state.url}/../redirect-target` }).end(); return; }
     if (state.mode === '401' || state.mode === '403') { res.writeHead(Number(state.mode), { 'Content-Type': 'text/plain' }).end(`secret upstream detail ${TOKEN}`); return; }
+    if (state.mode === '429') { res.writeHead(429, { 'Retry-After': '17' }).end(`private quota detail ${TOKEN}`); return; }
     if (req.headers.authorization !== `Bearer ${TOKEN}`) { res.writeHead(401).end('bad token'); return; }
     if (req.method === 'GET') { res.writeHead(405).end(); return; }
     if (body?.method === 'tools/call') {
@@ -181,6 +182,19 @@ for (const status of ['401', '403']) test(`revocation/access status ${status} is
   assert.equal(fixture.requests.filter(req => req.body?.method === 'tools/call').length, 1);
 });
 
+test('rate limiting preserves the wait interval without automatic order retries or private diagnostics', async t => {
+  const fixture = await upstream(t); const { client } = await local(t, fixture);
+  await client.listTools(); fixture.mode = '429';
+  const before = fixture.requests.length;
+  const result = await client.callTool({ name: 'paper_place_order', arguments: combo });
+  assert.equal(result.isError, true);
+  const error = JSON.parse(result.content[0].text);
+  assert.equal(error.code, 'RATE_LIMITED'); assert.equal(error.retryAfterSeconds, 17);
+  assert.match(error.error, /17 seconds/); assert.match(error.error, /same clientOrderId/);
+  assert.equal(fixture.requests.length - before, 1); assert.equal(fixture.calls.length, 0);
+  assert.ok(!JSON.stringify(result).includes(TOKEN));
+});
+
 for (const mode of ['timeout', 'disconnect', '404']) test(`${mode} never retries/replays an ambiguous trade; subsequent requests can recover`, async t => {
   const fixture = await upstream(t); const { client } = await local(t, fixture, { PAPER_TRADING_TIMEOUT_MS: '1000' });
   await client.listTools(); fixture.mode = mode;
@@ -239,7 +253,7 @@ test('EOF and SIGTERM close a local process cleanly; help/version need no creden
   await once(child.stdout, 'data'); child.kill('SIGTERM');
   const [code, signal] = await once(child, 'exit'); assert.equal(code, 0); assert.equal(signal, null);
   assert.match((await rawCLI(['--help'])).stdout, /PAPER_TRADING_TOKEN_FILE/);
-  assert.equal((await rawCLI(['--version'])).stdout, '0.2.0\n');
+  assert.equal((await rawCLI(['--version'])).stdout, '0.2.1\n');
 });
 
 test('--check is read-only discovery and returns a redacted diagnostic', async t => {

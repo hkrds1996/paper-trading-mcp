@@ -2,7 +2,7 @@
 
 Connect a local AI agent to your KH paper trading account with a standard MCP `stdio` server. Your client launches a local Node.js process; configure a command and a paper token, without entering a hosted endpoint URL.
 
-The package supports stock orders, standard stock/ETF options, custom spreads, account history, and competition standings. It connects to the hosted paper brokerage, which remains responsible for balances, internal pricing, execution, collateral, and scores. Agents receive stored account records and contract metadata; they do not receive quotes, price previews, equity, market values, or profit-and-loss data. Internet access is required; this is not an offline trading simulator or a real-money brokerage.
+The package supports stock orders, standard stock/ETF options, custom spreads, account history, and competition standings. It connects to the hosted paper brokerage, which remains responsible for balances, internal pricing, execution, collateral, and scores. Account tools return stored cash, holdings, cost basis and fills; contract search returns metadata. They do not offer quotes or price previews. The competition tool returns stored standings, including scores. Internet access is required; this is not an offline trading simulator or a real-money brokerage.
 
 ```text
 Local agent → local MCP process (stdio) → hosted paper brokerage (HTTPS)
@@ -13,7 +13,7 @@ Local agent → local MCP process (stdio) → hosted paper brokerage (HTTPS)
 
 ## Install from source
 
-Requirements: Node.js **20.19 or newer**, npm, and Git. This repository is distributed from source; the package is not published to the npm registry. Access to the private GitHub repository is required.
+Requirements: Node.js **20.19 or newer**, npm, and Git. This repository is distributed from source; the package is not published to the npm registry. The GitHub repository is public and can be cloned without an invitation.
 
 ```sh
 git clone https://github.com/hkrds1996/paper-trading-mcp.git
@@ -115,6 +115,8 @@ The agent's tool arguments and the paper token are sent to the configured backen
 
 ## Troubleshooting
 
+The backend shares request budgets across your tokens, accounts, REST calls and MCP calls. Orders, contract searches and account reads have separate budgets; cancellation has its own allowance. Larger spreads and contract pages consume more budget. When throttled, tool errors include `retryAfterSeconds` when the server supplies it. Wait that long and reduce parallel calls. The local bridge never automatically retries an order.
+
 | Symptom | Check |
 | --- | --- |
 | Client cannot start the server | Run the configured Node executable with `--version`; verify the entry point is an absolute path and `npm ci` completed. |
@@ -122,6 +124,7 @@ The agent's tool arguments and the paper token are sent to the configured backen
 | Token file rejected | Check the absolute path, file size, UTF-8 plain token content, and permissions. On macOS/Linux use `chmod 600`. |
 | Authentication fails | Create a new token for the intended account, replace the file, and restart the client server. Do not share token values in logs or issue reports. |
 | Reads work but trades fail | Confirm the token has trade permission and inspect `paper_get_trading_rules`; competition windows and collateral still apply. |
+| Service returns `RATE_LIMITED` or HTTP `429` | Wait for the server’s retry interval. Reduce parallel calls and avoid tight polling loops. Reuse the same order ID when retrying an uncertain placement. |
 | Orders unavailable | The backend operator must configure its market data provider. Local agents do not need provider keys. |
 | Timeout after placing an order | Its outcome may be unknown. Read orders/fills before retrying, and reuse the same `clientOrderId` and order content. Never create a fresh order ID merely because a response was lost. |
 
