@@ -38,6 +38,6 @@ The backend applies shared per-user operation budgets to REST and MCP, plus boun
 
 ## Distribution
 
-This version is installed from its own source repository with `npm ci` and launched through `bin/paper-trading-mcp.js`. The lockfile pins dependencies. No backend checkout is needed and no build output is shared with the full-stack application.
+The package can run through a version-pinned `npx` command after npm publication, or from its source repository with `npm ci`. The bin entry launches `bin/paper-trading-mcp.js`. No backend checkout or build step is needed. Installing the package does not provision user credentials.
 
-The source repository is public and can be cloned without an invitation. The npm package name identifies the project; it does not imply an npm registry release. Registry publishing can be added separately without changing the client/server accounting boundaries.
+The source repository is public. npm release status is recorded in the README; prepared installation examples do not imply publication has completed. See PUBLISHING.md for the release procedure.

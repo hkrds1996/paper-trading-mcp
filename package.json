@@ -2,13 +2,43 @@
   "name": "@krh1996/paper-trading-mcp",
   "version": "0.2.1",
   "description": "Local stdio MCP access to the KH paper trading brokerage and competitions.",
-  "repository": { "type": "git", "url": "git+https://github.com/hkrds1996/paper-trading-mcp.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hkrds1996/paper-trading-mcp.git"
+  },
   "type": "module",
-  "bin": { "paper-trading-mcp": "bin/paper-trading-mcp.js" },
-  "files": ["bin", "src", "docs", "examples", "README.md"],
-  "engines": { "node": ">=20.19.0" },
-  "scripts": { "start": "node bin/paper-trading-mcp.js", "test": "node --test", "check": "node bin/paper-trading-mcp.js --check" },
-  "dependencies": { "@modelcontextprotocol/sdk": "1.29.0" },
-  "keywords": ["mcp", "paper-trading", "stocks", "options", "stdio"],
-  "license": "UNLICENSED"
+  "bin": {
+    "paper-trading-mcp": "bin/paper-trading-mcp.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "docs",
+    "examples",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "start": "node bin/paper-trading-mcp.js",
+    "test": "node --test",
+    "check": "node bin/paper-trading-mcp.js --check",
+    "prepublishOnly": "npm test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0"
+  },
+  "keywords": [
+    "mcp",
+    "paper-trading",
+    "stocks",
+    "options",
+    "stdio"
+  ],
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

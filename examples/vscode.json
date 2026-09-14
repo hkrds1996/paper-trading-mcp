@@ -2,10 +2,13 @@
   "servers": {
     "paper-trading": {
       "type": "stdio",
-      "command": "/absolute/path/to/node",
-      "args": ["/absolute/path/to/paper-trading-mcp/bin/paper-trading-mcp.js"],
+      "command": "npx",
+      "args": [
+        "-y",
+        "@krh1996/paper-trading-mcp@0.2.1"
+      ],
       "env": {
-        "PAPER_TRADING_TOKEN_FILE": "/absolute/path/to/paper-trading-token"
+        "PAPER_TRADING_TOKEN": "YOUR_PAPER_TRADING_TOKEN"
       }
     }
   }
