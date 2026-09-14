@@ -15,7 +15,7 @@ Local agent → local MCP process (stdio) → hosted paper brokerage (HTTPS)
 
 Requirements: Node.js **20.19 or newer** and npm on the machine running your MCP client.
 
-**Release status: npm publication is pending.** The npm configuration below becomes usable after `@hkrds1996/paper-trading-mcp@0.2.1` is published. Until then, use [source installation](#install-from-source).
+Published package: [`@hkrds1996/paper-trading-mcp`](https://www.npmjs.com/package/@hkrds1996/paper-trading-mcp), version **0.2.1**. [Source installation](#install-from-source) is also available. A newly published version may take a few minutes to become available through the registry.
 
 The client runs `npx -y @hkrds1996/paper-trading-mcp@0.2.1`. npm downloads the package when needed and launches it; no repository checkout, absolute script path, or separate running terminal is required. The version is pinned so updates are deliberate. Installing the package does not create an account or issue a token.
 
