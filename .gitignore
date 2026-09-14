@@ -1,0 +1,11 @@
+node_modules/
+*.tgz
+.env
+.env.*
+!.env.example
+*.token
+paper-token*
+tokens/
+*.log
+coverage/
+.DS_Store

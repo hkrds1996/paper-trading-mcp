@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "paper-trading": {
+      "command": "/absolute/path/to/node",
+      "args": ["/absolute/path/to/paper-trading-mcp/bin/paper-trading-mcp.js"],
+      "env": {
+        "PAPER_TRADING_TOKEN_FILE": "/absolute/path/to/paper-trading-token"
+      }
+    }
+  }
+}
