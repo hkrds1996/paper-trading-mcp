@@ -33,7 +33,7 @@ Configure your local MCP client:
 3. Ask the agent to call `paper_complete_sign_in`. Poll no more than once every five seconds; approval requests expire after ten minutes.
 4. The agent can list competitions, create practice accounts, join competitions and trade on your owned paper accounts. Token management is available only if separately approved on the consent screen.
 
-The approved management session lasts **24 hours**, is held only in the local process memory, and needs new sign-in after a process restart. `paper_sign_out` revokes it. You can also revoke sessions from **Paper Trading → MCP access → Signed-in MCP sessions**. Revocation and expiry disable any child account tokens that session created. They do not cancel orders already accepted by the brokerage.
+The approved management session lasts for the duration selected during browser approval (default **24 hours**, up to the backend-configured maximum), is held only in the local process memory, and needs new sign-in after a process restart. `paper_sign_out` revokes it. You can also revoke sessions from **Paper Trading → MCP access → Signed-in MCP sessions**. Revocation and expiry disable any child account tokens that session created. They do not cancel orders already accepted by the brokerage.
 
 This browser approval protocol is specific to the local stdio bridge. It is not an advertised OAuth authorization server for arbitrary remote MCP clients. No login password, browser cookie, device secret, or management bearer token is exposed in tool results. The local bridge generates the management secret, sends only its hash during approval, and authenticates to the backend after approval.
 
