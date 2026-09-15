@@ -4,7 +4,7 @@ import { constants } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 export const signInTools = [
- {name:'paper_sign_in',description:'Start sign-in with an existing KH account. Open the returned browser URL yourself, compare the code, and approve access. Never give the agent your password. The approved session lasts 24 hours or until revoked; restarting this local process requires sign-in again.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false}},
+ {name:'paper_sign_in',description:'Start sign-in with an existing KH account. Open the returned browser URL yourself, compare the code, and approve access. Never give the agent your password. The approved session lasts until it expires on the schedule the operator set, or until you revoke it; restarting this local process requires sign-in again.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false}},
  {name:'paper_complete_sign_in',description:'Check browser approval and activate the management session. Call after approval, at least five seconds apart. Credentials are kept inside the local process and never returned to the model.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false}},
 ];
 export const toolResult=(data,isError=false)=>({...(isError?{isError:true}:{}),content:[{type:'text',text:JSON.stringify(data)}]});
