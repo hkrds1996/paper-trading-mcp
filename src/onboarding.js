@@ -55,5 +55,5 @@ export async function storeIssuedToken(result,config){
  const filename=join(directory,data.key.id+'.token');
  const file=await open(filename,constants.O_CREAT|constants.O_EXCL|constants.O_WRONLY|(constants.O_NOFOLLOW||0),0o600);
  try{await file.writeFile(data.token+'\n');}finally{await file.close();}
- return toolResult({success:true,key:data.key,tokenFile:filename,message:'The token was saved privately on this computer. Configure the other local agent with PAPER_TRADING_TOKEN_FILE pointing to this path. It expires with the authorizing management session.'});
+ return toolResult({success:true,key:data.key,tokenFile:filename,message:'The token was saved privately on this computer. Configure the other local agent with PAPER_TRADING_TOKEN_FILE pointing to this path. Its expiry and independent status are shown in key metadata. Independent tokens survive sign-out and must be revoked separately; session-bound tokens end with their authorizing session.'});
 }
