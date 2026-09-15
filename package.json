@@ -1,6 +1,6 @@
 {
   "name": "@hkrds1996/paper-trading-mcp",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Local stdio MCP access to the KH paper trading brokerage and competitions.",
   "repository": {
     "type": "git",

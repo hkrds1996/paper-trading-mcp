@@ -1,3 +1,4 @@
+import { createOnboarding, signInTools, toolResult, storeIssuedToken } from './onboarding.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -9,7 +10,7 @@ export const PAPER_TOOLS = new Set([
   'paper_list_accounts', 'paper_get_account', 'paper_list_positions', 'paper_list_orders',
   'paper_list_fills', 'paper_get_trading_rules', 'paper_get_option_chain',
   'paper_get_option_chain_page', 'paper_place_order', 'paper_cancel_order',
-  'paper_get_competition',
+  'paper_get_competition', 'paper_list_competitions', 'paper_create_account', 'paper_join_competition', 'paper_create_token', 'paper_list_tokens', 'paper_revoke_token', 'paper_sign_out',
 ]);
 
 class PublicBridgeError extends McpError {
@@ -38,14 +39,18 @@ export function safeFailure(error, { mutation = false, cancelled = false } = {})
 }
 
 /** Local transport only: execution, prices, risk, balances and scores remain hosted. */
-export function createBridge(config) {
+export function createBridge(configuration) {
+  const config={...configuration};
+  const onboarding=createOnboarding(config);
+  const interactive=!config.token;
+  let onboardingBusy=false;
   let current;
   let connecting;
   let closed = false;
   const connections = new Set();
   const server = new Server({ name: 'kh-paper-trading-local', version: VERSION }, {
-    capabilities: { tools: {} },
-    instructions: 'This is an execution and account-record paper brokerage. It exposes stored cash, position quantities, cost basis, orders, and immutable fills, plus option contract metadata. It does not provide quotes, price previews, market values, equity, or profit-and-loss data to agent clients. Read paper_get_trading_rules before trading. The hosted server owns fills, collateral, cash and competition scores. Never invent execution prices. Submit a stable clientOrderId; if the connection fails, inspect orders and reuse that ID and the same arguments. This bridge never retries an order automatically.',
+    capabilities: { tools: {listChanged:true} },
+    instructions: 'This is a paper brokerage with optional browser-approved onboarding. Use paper_sign_in when starting without an account token. Account creation and competition entry need an approved management session; token management needs separate consent. Never ask for passwords or credentials in chat. It exposes stored cash, position quantities, cost basis, orders, and immutable fills, plus option contract metadata. It does not provide quotes, price previews, market values, equity, or profit-and-loss data to agent clients. Read paper_get_trading_rules before trading. The hosted server owns fills, collateral, cash and competition scores. Never invent execution prices. Submit a stable clientOrderId; if the connection fails, inspect orders and reuse that ID and the same arguments. This bridge never retries an order automatically.',
   });
 
   async function discard(entry) {
@@ -127,9 +132,10 @@ export function createBridge(config) {
   }
 
   async function listTools(params = {}, signal) {
+    if(!config.token)return {tools:signInTools};
     try {
       const result = await run((client, options) => client.listTools(params, options), signal);
-      return { ...result, tools: result.tools.filter(tool => PAPER_TOOLS.has(tool.name)) };
+      return { ...result, tools: [...(interactive?signInTools:[]), ...result.tools.filter(tool => PAPER_TOOLS.has(tool.name))] };
     } catch (error) {
       const safe = safeFailure(error, { cancelled: signal?.aborted });
       throw new PublicBridgeError(safe);
@@ -139,12 +145,30 @@ export function createBridge(config) {
   server.setRequestHandler(ListToolsRequestSchema, (request, extra) => listTools(request.params, extra.signal));
   server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     const { name } = request.params;
+    if(interactive && ['paper_sign_in','paper_complete_sign_in'].includes(name)){
+      if(Object.keys(request.params.arguments||{}).length)return toolResult({success:false,error:'This tool takes no arguments.'},true);
+      if(onboardingBusy)return toolResult({success:false,code:'SIGN_IN_BUSY',message:'A sign-in request is already in progress.'},true);
+      onboardingBusy=true;
+      try{
+        if(name==='paper_sign_in')return await onboarding.start();
+        const completed=await onboarding.complete();
+        if(completed.token){config.token=completed.token;await server.notification({method:'notifications/tools/list_changed'}).catch(()=>{});}
+        return completed.result;
+      }catch(error){return toolResult({success:false,...safeFailure(error)},true);}finally{onboardingBusy=false;}
+    }
+    if(!config.token)return toolResult({success:false,code:'SIGN_IN_REQUIRED',error:'Use paper_sign_in and approve access in your browser first.'},true);
+
     if (!PAPER_TOOLS.has(name)) return { isError: true, content: [{ type: 'text', text: JSON.stringify({ success: false, code: 'UNKNOWN_TOOL', error: 'This local server only exposes paper trading tools.' }) }] };
     try {
       // Preserve arguments, nested legs, idempotency keys, result metadata and isError.
-      return await run((client, options) => client.callTool(request.params, undefined, options), extra.signal);
+      const result=await run((client, options) => client.callTool(request.params, undefined, options), extra.signal);
+      if(name==='paper_create_token'){
+        try{return await storeIssuedToken(result,config);}catch{return toolResult({success:false,code:'TOKEN_STORAGE_FAILED',error:'The token may have been issued, but local secure storage failed. Its secret was not exposed. List tokens and revoke the new token before using a new requestId.'},true);}
+      }
+      if(name==='paper_sign_out' && !result.isError){config.token=undefined;onboarding.clear();if(current)await discard(current);await server.notification({method:'notifications/tools/list_changed'}).catch(()=>{});}
+      return result;
     } catch (error) {
-      const safe = safeFailure(error, { mutation: name === 'paper_place_order' || name === 'paper_cancel_order', cancelled: extra.signal.aborted });
+      const safe = safeFailure(error, { mutation: ['paper_place_order','paper_cancel_order','paper_create_account','paper_join_competition','paper_create_token','paper_revoke_token'].includes(name), cancelled: extra.signal.aborted });
       return { isError: true, content: [{ type: 'text', text: JSON.stringify({ success: false, code: safe.code, error: safe.message, ...(safe.retryAfterSeconds ? { retryAfterSeconds: safe.retryAfterSeconds } : {}) }) }] };
     }
   });

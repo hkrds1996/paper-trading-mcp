@@ -9,8 +9,9 @@ Usage: paper-trading-mcp [--help | --version | --check]
 With no arguments, serve MCP over stdin/stdout for a local agent.
 --check performs read-only upstream tool discovery and exits.
 
-Credentials (choose one; tokens never belong in command-line arguments):
-  PAPER_TRADING_TOKEN_FILE  Absolute path to a private token text file (preferred)
+With no credentials, use paper_sign_in and paper_complete_sign_in for browser approval.
+Credentials (optional; choose one; tokens never belong in command-line arguments):
+  PAPER_TRADING_TOKEN_FILE  Absolute path to a private account token file
   PAPER_TRADING_TOKEN       Account-scoped token from the paper trading dashboard
 Optional:
   PAPER_TRADING_MCP_URL     Hosted endpoint override for self-hosting
@@ -23,7 +24,9 @@ async function main() {
   if (args.length === 1 && ['--help', '-h'].includes(args[0])) { process.stdout.write(help); return; }
   if (args.length === 1 && ['--version', '-v'].includes(args[0])) { process.stdout.write(`${VERSION}\n`); return; }
   if (args.length && !(args.length === 1 && args[0] === '--check')) throw new ConfigurationError('Unknown arguments. Use --help. Supply credentials through a token file or environment, never command-line arguments.');
-  const bridge = createBridge(await loadConfiguration());
+  const configuration=await loadConfiguration();
+  if(args[0]==='--check' && !configuration.token) throw new ConfigurationError('--check requires an account token; otherwise start MCP and use paper_sign_in.');
+  const bridge = createBridge(configuration);
   let stopping;
   const stop = () => {
     if (stopping) return stopping;

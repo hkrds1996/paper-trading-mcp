@@ -2,7 +2,7 @@ import { open } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { isAbsolute } from 'node:path';
 
-export const VERSION = '0.2.1';
+export const VERSION = '0.3.0';
 export const DEFAULT_URL = 'https://api.krh1996.com/api/paper/mcp';
 export class ConfigurationError extends Error {}
 
@@ -39,11 +39,13 @@ export async function loadConfiguration(env = process.env) {
   const tokenFile = env.PAPER_TRADING_TOKEN_FILE;
   const tokenValue = env.PAPER_TRADING_TOKEN;
   if (tokenFile !== undefined && tokenValue !== undefined) throw new ConfigurationError('Set only one of PAPER_TRADING_TOKEN_FILE or PAPER_TRADING_TOKEN.');
-  if (!tokenFile && !tokenValue) throw new ConfigurationError('Set PAPER_TRADING_TOKEN_FILE to an absolute token-file path, or set PAPER_TRADING_TOKEN to an account token from Paper Trading → MCP access.');
-  const token = tokenFile ? await readTokenFile(tokenFile) : tokenValue.trim();
-  if (!/^paper_[A-Za-z0-9_-]{43}$/.test(token)) throw new ConfigurationError('The paper trading token format is invalid. Create an account-scoped access token in the dashboard.');
+  const token = tokenFile ? await readTokenFile(tokenFile) : tokenValue?.trim();
+  if (token !== undefined && !/^paper_[A-Za-z0-9_-]{43}$/.test(token)) throw new ConfigurationError('The paper trading token format is invalid. Create an account-scoped access token in the dashboard.');
   const timeoutValue = env.PAPER_TRADING_TIMEOUT_MS ?? '30000';
   const timeoutMs = Number(timeoutValue);
   if (!/^\d+$/.test(timeoutValue) || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 120000) throw new ConfigurationError('PAPER_TRADING_TIMEOUT_MS must be an integer from 1000 through 120000.');
-  return { token, endpoint: parseEndpoint(env.PAPER_TRADING_MCP_URL), timeoutMs };
+  if (env.PAPER_TRADING_CREDENTIAL_DIR && !isAbsolute(env.PAPER_TRADING_CREDENTIAL_DIR)) throw new ConfigurationError('PAPER_TRADING_CREDENTIAL_DIR must be absolute.');
+  const webUrl = parseEndpoint(env.PAPER_TRADING_WEB_URL || 'https://krh1996.com');
+  if (webUrl.pathname !== '/') throw new ConfigurationError('PAPER_TRADING_WEB_URL must be an origin.');
+  return { token, webUrl, credentialDir:env.PAPER_TRADING_CREDENTIAL_DIR, endpoint: parseEndpoint(env.PAPER_TRADING_MCP_URL), timeoutMs };
 }

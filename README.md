@@ -11,94 +11,80 @@ Local agent → local MCP process (stdio) → hosted paper brokerage (HTTPS)
                                            └─ competition rules and standings
 ```
 
-## Quick setup with npm
+## Sign in and manage paper accounts
 
-Requirements: Node.js **20.19 or newer** and npm on the machine running your MCP client.
+Requires Node.js **20.19 or newer** and npm. Version **0.3.0** adds browser-approved onboarding for an **existing KH account**. Use the pinned version below, or use source installation for development.
 
-Published package: [`@hkrds1996/paper-trading-mcp`](https://www.npmjs.com/package/@hkrds1996/paper-trading-mcp), version **0.2.1**. [Source installation](#install-from-source) is also available. A newly published version may take a few minutes to become available through the registry.
-
-The client runs `npx -y @hkrds1996/paper-trading-mcp@0.2.1`. npm downloads the package when needed and launches it; no repository checkout, absolute script path, or separate running terminal is required. The version is pinned so updates are deliberate. Installing the package does not create an account or issue a token.
-
-## Create an account token
-
-1. Open the [paper trading dashboard](https://krh1996.com/#/paper-trading), create a practice account or join a competition, and open its MCP access screen.
-2. Choose an account and either **Read only** or **Read account records & place paper orders**, then create an access token.
-3. Save the token when it appears; the dashboard shows its value once. Supply it as `PAPER_TRADING_TOKEN` through your client’s secret/environment settings or the configuration below. A literal token in JSON is stored in that configuration file; keep it out of shared repositories.
-
-A token file is optional. If you prefer one, store only the token in a private UTF-8 file and use `PAPER_TRADING_TOKEN_FILE` instead. A trailing newline is accepted; the filename does not need a `.txt` extension.
-
-On macOS/Linux, give only your user access to that file:
-
-```sh
-chmod 600 /absolute/path/to/paper-trading-token
-```
-
-On Windows, restrict the file's security permissions to your account. Keep the file outside shared repositories. This local project uses the paper token only; users do not need market-data provider keys, database credentials, or backend source code.
-
-## Configure your local agent
-
-Replace `YOUR_PAPER_TRADING_TOKEN` with your account token, or use your client’s secret-input mechanism. `npx` must be available to the client; GUI clients may have a different `PATH` from your terminal. On Windows, clients may require `npx.cmd`. Tokens are never passed in `args`.
-
-For a client using the common `mcpServers` format:
+Configure your local MCP client:
 
 ```json
 {
   "mcpServers": {
     "paper-trading": {
       "command": "npx",
-      "args": ["-y", "@hkrds1996/paper-trading-mcp@0.2.1"],
-      "env": {
-        "PAPER_TRADING_TOKEN": "YOUR_PAPER_TRADING_TOKEN"
-      }
+      "args": ["-y", "@hkrds1996/paper-trading-mcp@0.3.0"]
     }
   }
 }
 ```
 
-Merge this server entry into your existing configuration. Restart the server from your client after saving. Client-specific templates are included:
+1. Ask the agent to call `paper_sign_in`.
+2. Open the returned KH link yourself, sign in to your existing website account, compare the confirmation code, and approve the request. If you sign in in another tab, return to the approval tab and click **Check sign-in again**. Never approve a request you did not start.
+3. Ask the agent to call `paper_complete_sign_in`. Poll no more than once every five seconds; approval requests expire after ten minutes.
+4. The agent can list competitions, create practice accounts, join competitions and trade on your owned paper accounts. Token management is available only if separately approved on the consent screen.
 
-| Client | Template | Where to configure it |
-| --- | --- | --- |
-| Claude Desktop | [claude-desktop.json](examples/claude-desktop.json) | Settings → Developer → Edit Config; restart Claude Desktop. See the [official local MCP guide](https://modelcontextprotocol.io/docs/develop/connect-local-servers). |
-| Cursor | [cursor.json](examples/cursor.json) | Personal `~/.cursor/mcp.json`, or workspace `.cursor/mcp.json`. See [Cursor's MCP configuration](https://cursor.com/docs/mcp). |
-| VS Code | [vscode.json](examples/vscode.json) | Run **MCP: Open User Configuration**, or use workspace `.vscode/mcp.json`. Its root key is `servers`. See the [official VS Code guide](https://code.visualstudio.com/docs/agent-customization/mcp-servers). |
+The approved management session lasts **24 hours**, is held only in the local process memory, and needs new sign-in after a process restart. `paper_sign_out` revokes it. You can also revoke sessions from **Paper Trading → MCP access → Signed-in MCP sessions**. Revocation and expiry disable any child account tokens that session created. They do not cancel orders already accepted by the brokerage.
 
-For Windows JSON paths, use forward slashes (`C:/Users/YOUR_USER/...`) or escaped backslashes (`C:\\Users\\YOUR_USER\\...`). The token file path must be absolute; `~` is not expanded by this package.
+This browser approval protocol is specific to the local stdio bridge. It is not an advertised OAuth authorization server for arbitrary remote MCP clients. No login password, browser cookie, device secret, or management bearer token is exposed in tool results. The local bridge generates the management secret, sends only its hash during approval, and authenticates to the backend after approval.
 
-Your client starts the process and communicates over standard input/output. You do not need to run a local web server, open a port, or leave a separate terminal running.
+## Tools for onboarding
 
-## Check the connection
+| Tool | Access |
+| --- | --- |
+| `paper_sign_in`, `paper_complete_sign_in` | Local bridge, no initial account token needed |
+| `paper_list_competitions` | Authenticated discovery using existing visibility rules |
+| `paper_create_account` | Management session; practice account only; stable `requestId` required |
+| `paper_join_competition` | Management session; one fixed-funded entry per user |
+| `paper_create_token` | Separate token-management consent; owned account and read/trade scopes only |
+| `paper_list_tokens`, `paper_revoke_token` | Separate token-management consent; own tokens only |
+| `paper_sign_out` | Revoke the current management session and its delegated tokens |
 
-With `PAPER_TRADING_TOKEN` or `PAPER_TRADING_TOKEN_FILE` already supplied in your environment, run:
+Account creation reuses an existing result for the same `requestId` and rejects changed details. Repeated competition joins return the existing entry. Token creation never reissues an old secret: a repeated `requestId` returns metadata only. If a token response or local write was lost, revoke that token and create another with a new request ID.
 
-```sh
-npx -y @hkrds1996/paper-trading-mcp@0.2.1 --check
+`paper_create_token` saves the one-time child token in a private file under `~/.config/kh-paper-trading/tokens/` (or `PAPER_TRADING_CREDENTIAL_DIR`). Its tool result contains metadata and the file path, not the secret. Configure another local agent with `PAPER_TRADING_TOKEN_FILE`. Those child credentials expire with the approving session and cannot grant management permissions or issue other tokens. File-based handoff currently targets agents on the same machine.
+
+Public competition creation remains restricted to admin website sessions; this MCP management grant does not delegate admin privileges or expose a competition-creation tool. New KH website registration is not included.
+
+## Use an existing account token instead
+
+For a permanently configured agent restricted to one account, add an `env` object to the server configuration:
+
+```json
+"env": { "PAPER_TRADING_TOKEN": "YOUR_PAPER_TRADING_TOKEN" }
 ```
 
-For source installation, use `node bin/paper-trading-mcp.js --check` from the checkout instead.
+Or set `PAPER_TRADING_TOKEN_FILE` to an absolute private token-file path. Set only one token source. POSIX token files must be owner-only (`chmod 600`); Windows uses account ACLs. Prefer your client's secret settings when available. A literal token in JSON is stored in that configuration file. Do not commit it. Existing account tokens keep their original restrictions and do not receive the onboarding tools.
 
-A successful check prints JSON with `ok: true`, `mode: "paper"`, and the number of available tools. This check only discovers tools; it does not place orders or prove that market data is configured. Normal server mode reserves stdout for MCP messages and sends diagnostics to stderr.
+Client templates: [Claude Desktop](examples/claude-desktop.json), [Cursor](examples/cursor.json), [VS Code](examples/vscode.json). Merge the entry into your existing configuration. GUI clients need `npx` on their PATH; Windows clients may require `npx.cmd`. No backend checkout, Theta Terminal installation, or market-data key is needed on an agent's computer.
 
-Then ask your agent:
+## Configuration and checks
 
-> List my paper account, read its trading rules, and show its cash, position quantities, cost basis, orders, and recorded fills. Do not place an order.
-
-See the [tool reference and order examples](docs/TOOLS.md) for stock orders, multi-leg orders, pagination, and retry handling.
-
-## Configuration
-
-| Environment variable | Purpose |
+| Variable | Purpose |
 | --- | --- |
-| `PAPER_TRADING_TOKEN_FILE` | Optional: absolute path to a private file containing one paper token. File must be regular, at most 8 KiB, with no group/other access on POSIX systems. |
-| `PAPER_TRADING_TOKEN` | Token supplied through your client's secret/environment facility. Do not set this together with `PAPER_TRADING_TOKEN_FILE`. |
-| `PAPER_TRADING_MCP_URL` | Optional override for a development or separately hosted paper backend. Normal users can omit it. Accepts HTTPS, or HTTP on an exact loopback host only. Credentials, query parameters, and fragments are rejected. |
-| `PAPER_TRADING_TIMEOUT_MS` | Optional request timeout, from 1,000 to 120,000 milliseconds. Default: 30,000. |
+| `PAPER_TRADING_TOKEN` | Optional existing account token; disables interactive onboarding |
+| `PAPER_TRADING_TOKEN_FILE` | Optional absolute path to an existing account token; mutually exclusive with the above |
+| `PAPER_TRADING_CREDENTIAL_DIR` | Optional absolute private directory for issued child token files |
+| `PAPER_TRADING_MCP_URL` | Backend override; HTTPS or exact loopback HTTP only |
+| `PAPER_TRADING_WEB_URL` | Browser UI origin for a self-hosted deployment; HTTPS or exact loopback HTTP only |
+| `PAPER_TRADING_TIMEOUT_MS` | Request timeout, 1000–120000 ms; default 30000 |
 
-`--help` describes the command line; `--version` prints the package version. The token is loaded at startup, so restart your MCP server after changing it. To stop an agent's access, select **Revoke** for its connection in the dashboard. Revocation invalidates subsequent authenticated requests; it does not cancel orders already accepted by the brokerage.
+With an account token already in the environment, `npx -y @hkrds1996/paper-trading-mcp@0.3.0 --check` checks read-only tool discovery. It does not verify provider entitlement or execute a trade. Without an account token, start normal MCP mode and use the sign-in tools.
+
+See the [tool reference](docs/TOOLS.md) for existing stock, option, spread and account-record operations. This release adds onboarding; it does not add live quote or price-preview tools.
 
 ## What remains controlled by the brokerage
 
-Every participant in a competition receives the same competition-defined starting deposit once. MCP cannot fund or reset an account, transfer balances, edit positions or purchase prices, or set scores. The only write tools place and cancel paper orders. Limits constrain acceptable prices; the server determines actual fills from market data.
+Every participant in a competition receives the same competition-defined starting deposit once. MCP cannot fund or reset an account, transfer balances, edit positions or purchase prices, or set scores. Account-token write tools place and cancel paper orders. Browser-approved management sessions can also provision accounts, join competitions and manage delegated tokens. Limits constrain acceptable prices; the server determines actual fills from market data.
 
 New `portfolio-margin-v2` accounts support custom orders of up to 16 legs, including long/short standard options and spreads, subject to collateral and account rules. Existing `cash-long-v1` accounts retain their original restrictions. This package exposes the same rules as the dashboard; it does not remove backend limits. Index/futures options, adjusted contracts, and physical exercise/assignment are not supported.
 

@@ -5,11 +5,8 @@
       "command": "npx",
       "args": [
         "-y",
-        "@hkrds1996/paper-trading-mcp@0.2.1"
-      ],
-      "env": {
-        "PAPER_TRADING_TOKEN": "YOUR_PAPER_TRADING_TOKEN"
-      }
+        "@hkrds1996/paper-trading-mcp@0.3.0"
+      ]
     }
   }
 }

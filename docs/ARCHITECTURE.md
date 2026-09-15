@@ -41,3 +41,9 @@ The backend applies shared per-user operation budgets to REST and MCP, plus boun
 The package can run through a version-pinned `npx` command after npm publication, or from its source repository with `npm ci`. The bin entry launches `bin/paper-trading-mcp.js`. No backend checkout or build step is needed. Installing the package does not provision user credentials.
 
 The source repository is public. npm release status is recorded in the README; prepared installation examples do not imply publication has completed. See PUBLISHING.md for the release procedure.
+
+## Browser-approved onboarding (0.3.0)
+
+Without an account token, the bridge exposes sign-in tools and uses the backend's dedicated browser approval flow. This is a local stdio onboarding protocol, not the MCP HTTP OAuth standard. The human logs in using an existing KH browser session. The bridge generates a random management credential and sends its SHA-256 hash in a short-lived approval request. The browser receives only a confirmation code; the polling secret stays local. Approval binds the hash to the authenticated user for 24 hours. Optional token management requires separate consent.
+
+Management grants are memory-only in the local process, database-checked for expiry/revocation on every backend call, restricted to the MCP endpoint, and never carry admin authority. Child account tokens are saved in owner-only local files and remain dependent on the parent grant. No user signup, refresh-token flow, or long-lived management credential storage is implemented. Existing account-token authentication stays supported.

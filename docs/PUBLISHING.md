@@ -5,7 +5,7 @@ The user has requested a public npm release under `@hkrds1996/paper-trading-mcp`
 1. Run `npm login` interactively and verify `npm whoami`.
 2. Run `npm ci`, `npm test`, and `npm pack --dry-run`; inspect the package file list.
 3. Run `npm publish --access public`. `prepublishOnly` runs the tests again. Complete any npm authentication or OTP prompt in the terminal.
-4. Confirm `npm view @hkrds1996/paper-trading-mcp@0.2.1 version` and `npx -y @hkrds1996/paper-trading-mcp@0.2.1 --version`.
+4. Confirm `npm view @hkrds1996/paper-trading-mcp@0.3.0 version` and `npx -y @hkrds1996/paper-trading-mcp@0.3.0 --version`.
 5. Remove the pending-publication notice from the README and update the dashboard configuration examples only after registry verification.
 
 Keep `UNLICENSED` until the owner chooses a source license; public distribution does not grant an open-source license. No license change is part of this release.
