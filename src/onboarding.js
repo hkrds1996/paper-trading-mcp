@@ -34,7 +34,7 @@ export function createOnboarding(config){
    pending.lastPoll=Date.now();const data=await request('poll',{deviceCode:pending.deviceCode});
    if(data.status==='approved'){
     const token=pending.token;pending=undefined;
-    return {token,result:toolResult({success:true,status:'signed_in',expiresAt:data.grant?.expiresAt,permissions:data.grant?.scopes,message:'You can now create paper accounts and join competitions. Refresh the tool list.'})};
+    return {token,result:toolResult({success:true,status:'signed_in',expiresAt:data.grant?.expiresAt,permissions:data.grant?.scopes,tokenMaxTtlDays:data.grant?.tokenMaxTtlDays,tokenPolicy:data.grant?.tokenPolicy,message:'You can now create paper accounts and join competitions. Refresh the tool list.'})};
    }
    if(data.status==='denied'||data.status==='expired')pending=undefined;
    return {result:toolResult({success:true,status:data.status,retryAfterSeconds:5})};

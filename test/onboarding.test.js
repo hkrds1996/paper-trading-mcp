@@ -14,13 +14,16 @@ test('approval keeps all secrets local, polls conservatively, and activates only
   let body='';for await(const chunk of req)body+=chunk;requests.push({path:req.url,body:JSON.parse(body)});
   res.setHeader('Content-Type','application/json');
   if(req.url.endsWith('/start'))res.end(JSON.stringify({deviceCode:'d'.repeat(43),userCode:'1234567890ABCDEF'}));
-  else res.end(JSON.stringify({status:approved?'approved':'pending',grant:{scopes:['read','trade','manage'],expiresAt:'2027-01-01T00:00:00Z'}}));
+  else res.end(JSON.stringify({status:approved?'approved':'pending',grant:{scopes:['read','trade','manage'],expiresAt:'2027-01-01T00:00:00Z',tokenMaxTtlDays:30,tokenPolicy:{ttlDays:30,maxTtlDays:30}}}));
  });server.listen(0,'127.0.0.1');await once(server,'listening');t.after(()=>new Promise(r=>server.close(r)));
  const config={endpoint:new URL(`http://127.0.0.1:${server.address().port}/api/paper/mcp`),timeoutMs:1000};
  const auth=createOnboarding(config);const start=await auth.start();
  assert.match(start.content[0].text,/approval_required/);assert.ok(!JSON.stringify(start).includes('d'.repeat(43)));assert.ok(!JSON.stringify(start).includes('paper_user_'));
  await auth.start();assert.equal(requests.length,1);
  approved=true;const done=await auth.complete();assert.match(done.token,/^paper_user_[A-Za-z0-9_-]{43}$/);assert.ok(!JSON.stringify(done.result).includes(done.token));
+ const visible=JSON.parse(done.result.content[0].text);
+ assert.equal(visible.tokenMaxTtlDays,30);
+ assert.deepEqual(visible.tokenPolicy,{ttlDays:30,maxTtlDays:30});
  assert.equal(requests[0].body.tokenHash,createHash('sha256').update(done.token).digest('hex'));
  assert.equal(requests[1].body.deviceCode,'d'.repeat(43));
 });
