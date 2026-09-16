@@ -22,7 +22,7 @@ Configure your local MCP client:
   "mcpServers": {
     "paper-trading": {
       "command": "npx",
-      "args": ["-y", "@hkrds1996/paper-trading-mcp@0.3.0"]
+      "args": ["-y", "@hkrds1996/paper-trading-mcp@0.3.2"]
     }
   }
 }
@@ -78,7 +78,7 @@ Client templates: [Claude Desktop](examples/claude-desktop.json), [Cursor](examp
 | `PAPER_TRADING_WEB_URL` | Browser UI origin for a self-hosted deployment; HTTPS or exact loopback HTTP only |
 | `PAPER_TRADING_TIMEOUT_MS` | Request timeout, 1000–120000 ms; default 30000 |
 
-With an account token already in the environment, `npx -y @hkrds1996/paper-trading-mcp@0.3.0 --check` checks read-only tool discovery. It does not verify provider entitlement or execute a trade. Without an account token, start normal MCP mode and use the sign-in tools.
+With an account token already in the environment, `npx -y @hkrds1996/paper-trading-mcp@0.3.2 --check` checks read-only tool discovery. It does not verify provider entitlement or execute a trade. Without an account token, start normal MCP mode and use the sign-in tools.
 
 See the [tool reference](docs/TOOLS.md) for existing stock, option, spread and account-record operations. This release adds onboarding; it does not add live quote or price-preview tools.
 
