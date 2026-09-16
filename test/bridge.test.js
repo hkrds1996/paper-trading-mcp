@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { spawn } from 'node:child_process';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
@@ -254,7 +254,8 @@ test('EOF and SIGTERM close a local process cleanly; help/version need no creden
   await once(child.stdout, 'data'); child.kill('SIGTERM');
   const [code, signal] = await once(child, 'exit'); assert.equal(code, 0); assert.equal(signal, null);
   assert.match((await rawCLI(['--help'])).stdout, /PAPER_TRADING_TOKEN_FILE/);
-  assert.equal((await rawCLI(['--version'])).stdout, '0.3.0\n');
+  const metadata = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  assert.equal((await rawCLI(['--version'])).stdout, `${metadata.version}\n`);
 });
 
 test('--check is read-only discovery and returns a redacted diagnostic', async t => {
