@@ -4,7 +4,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "@hkrds1996/paper-trading-mcp@0.3.2"
+        "@hkrds1996/paper-trading-mcp@0.4.0"
       ]
     }
   }
