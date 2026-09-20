@@ -12,6 +12,8 @@ ThetaData Free supports historical end-of-day data, not executable real-time opt
 
 The published stdio MCP supports trading and records after a paper account and account token already exist. Account-scoped tokens intentionally cannot create accounts, join another competition, or issue tokens. Removing accountId restrictions from those tokens would silently widen existing grants.
 
+Superseded in part by the platform agent token design in the backend repository, which adds a second kind rather than widening this one: a platform token carries the owner's accounts and an explicit scope per capability, so provisioning no longer requires a management session. The account token keeps exactly the restrictions described here.
+
 The missing capability is a user-authorized management session, separate from an account trading token. A human must sign in and approve management permissions before the agent can provision resources on their behalf. KH website registration versus existing-user sign-in is awaiting the owner's clarification.
 
 ## Proposed user flow

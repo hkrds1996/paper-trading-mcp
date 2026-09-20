@@ -2,7 +2,7 @@
 
 Connect a local AI agent to your KH paper trading account with a standard MCP `stdio` server. Your client launches a local Node.js process; configure a command and a paper token, without entering a hosted endpoint URL.
 
-The package supports stock orders, standard stock/ETF options, custom spreads, account history, and competition standings. It connects to the hosted paper brokerage, which remains responsible for balances, internal pricing, execution, collateral, and scores. Account tools return stored cash, holdings, cost basis and fills; contract search returns metadata. They do not offer quotes or price previews. The competition tool returns stored standings, including scores. Internet access is required; this is not an offline trading simulator or a real-money brokerage.
+The package supports stock orders, standard stock/ETF options, custom spreads, account history, and competition standings. It connects to the hosted paper brokerage, which remains responsible for balances, internal pricing, execution, collateral, and scores. Account tools return stored cash, holdings, cost basis and fills; contract search returns metadata. They do not offer quotes or price previews. The competition tools return stored standings, including scores, and a fellow participant's stored holdings and activity for a competition you have entered. Internet access is required; this is not an offline trading simulator or a real-money brokerage.
 
 ```text
 Local agent → local MCP process (stdio) → hosted paper brokerage (HTTPS)
@@ -37,14 +37,14 @@ The approved management session lasts for the duration selected during browser a
 
 This browser approval protocol is specific to the local stdio bridge. It is not an advertised OAuth authorization server for arbitrary remote MCP clients. No login password, browser cookie, device secret, or management bearer token is exposed in tool results. The local bridge generates the management secret, sends only its hash during approval, and authenticates to the backend after approval.
 
-## Tools for onboarding
+## Provisioning and token tools
 
 | Tool | Access |
 | --- | --- |
-| `paper_sign_in`, `paper_complete_sign_in` | Local bridge, no initial account token needed |
+| `paper_sign_in`, `paper_complete_sign_in` | Local bridge, no initial credential needed |
 | `paper_list_competitions` | Authenticated discovery using existing visibility rules |
-| `paper_create_account` | Management session; practice account only; stable `requestId` required |
-| `paper_join_competition` | Management session; one fixed-funded entry per user |
+| `paper_create_account` | A platform token holding `accounts:create`, or a management session; practice account only; stable `requestId` required |
+| `paper_join_competition` | A platform token holding `competitions:join`, or a management session; one fixed-funded entry per user |
 | `paper_create_token` | Separate token-management consent; owned account and read/trade scopes only |
 | `paper_list_tokens`, `paper_revoke_token` | Separate token-management consent; own tokens only |
 | `paper_sign_out` | Revoke the current management session and its delegated tokens |
@@ -55,15 +55,15 @@ Account creation reuses an existing result for the same `requestId` and rejects 
 
 Public competition creation remains restricted to admin website sessions; this MCP management grant does not delegate admin privileges or expose a competition-creation tool. New KH website registration is not included.
 
-## Use an existing account token instead
+## Configure an existing token instead
 
-For a permanently configured agent restricted to one account, add an `env` object to the server configuration:
+A credential in the environment skips browser approval entirely: the bridge never offers the sign-in tools and never asks anyone to approve anything. Both issued kinds are configured the same way — a **platform token** is the default for an agent, and an **account-restricted token** narrows the same agent to one account. Add an `env` object to the server configuration:
 
 ```json
 "env": { "PAPER_TRADING_TOKEN": "YOUR_PAPER_TRADING_TOKEN" }
 ```
 
-Or set `PAPER_TRADING_TOKEN_FILE` to an absolute private token-file path. Set only one token source. POSIX token files must be owner-only (`chmod 600`); Windows uses account ACLs. Prefer your client's secret settings when available. A literal token in JSON is stored in that configuration file. Do not commit it. Existing account tokens keep their original restrictions and do not receive the onboarding tools.
+Or set `PAPER_TRADING_TOKEN_FILE` to an absolute private token-file path. Set only one token source. POSIX token files must be owner-only (`chmod 600`); Windows uses account ACLs. Prefer your client's secret settings when available. A literal token in JSON is stored in that configuration file. Do not commit it. The token keeps the scopes it was issued with: a platform token reaches every account its owner holds and whatever its scopes allow, and an account token stays bound to its one account. Neither kind receives the sign-in tools, and neither needs them. Call `paper_get_trading_rules` to see which kind a running connection holds and what it may do.
 
 Client templates: [Claude Desktop](examples/claude-desktop.json), [Cursor](examples/cursor.json), [VS Code](examples/vscode.json). Merge the entry into your existing configuration. GUI clients need `npx` on their PATH; Windows clients may require `npx.cmd`. No backend checkout, Theta Terminal installation, or market-data key is needed on an agent's computer.
 
@@ -71,20 +71,20 @@ Client templates: [Claude Desktop](examples/claude-desktop.json), [Cursor](examp
 
 | Variable | Purpose |
 | --- | --- |
-| `PAPER_TRADING_TOKEN` | Optional existing account token; disables interactive onboarding |
-| `PAPER_TRADING_TOKEN_FILE` | Optional absolute path to an existing account token; mutually exclusive with the above |
+| `PAPER_TRADING_TOKEN` | Optional existing token, platform or account-restricted; disables interactive onboarding |
+| `PAPER_TRADING_TOKEN_FILE` | Optional absolute path to an existing token; mutually exclusive with the above |
 | `PAPER_TRADING_CREDENTIAL_DIR` | Optional absolute private directory for issued child token files |
 | `PAPER_TRADING_MCP_URL` | Backend override; HTTPS or exact loopback HTTP only |
 | `PAPER_TRADING_WEB_URL` | Browser UI origin for a self-hosted deployment; HTTPS or exact loopback HTTP only |
 | `PAPER_TRADING_TIMEOUT_MS` | Request timeout, 1000–120000 ms; default 30000 |
 
-With an account token already in the environment, `npx -y @hkrds1996/paper-trading-mcp@0.3.2 --check` checks read-only tool discovery. It does not verify provider entitlement or execute a trade. Without an account token, start normal MCP mode and use the sign-in tools.
+With a token already in the environment, `npx -y @hkrds1996/paper-trading-mcp@0.3.2 --check` checks read-only tool discovery. It does not verify provider entitlement or execute a trade. Without a token, start normal MCP mode and use the sign-in tools.
 
 See the [tool reference](docs/TOOLS.md) for existing stock, option, spread and account-record operations. This release adds onboarding; it does not add live quote or price-preview tools.
 
 ## What remains controlled by the brokerage
 
-Every participant in a competition receives the same competition-defined starting deposit once. MCP cannot fund or reset an account, transfer balances, edit positions or purchase prices, or set scores. Account-token write tools place and cancel paper orders. Browser-approved management sessions can also provision accounts, join competitions and manage delegated tokens. Limits constrain acceptable prices; the server determines actual fills from market data.
+Every participant in a competition receives the same competition-defined starting deposit once. MCP cannot fund or reset an account, transfer balances, edit positions or purchase prices, or set scores. Account-token write tools place and cancel paper orders. A platform token places and cancels them too, and — with `accounts:create` or `competitions:join` — provisions accounts and enters competitions; browser-approved management sessions do the same and can additionally manage delegated tokens. Limits constrain acceptable prices; the server determines actual fills from market data.
 
 New `portfolio-margin-v2` accounts support custom orders of up to 16 legs, including long/short standard options and spreads, subject to collateral and account rules. Existing `cash-long-v1` accounts retain their original restrictions. This package exposes the same rules as the dashboard; it does not remove backend limits. Index/futures options, adjusted contracts, and physical exercise/assignment are not supported.
 

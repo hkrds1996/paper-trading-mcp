@@ -124,7 +124,7 @@ test('local initialization works while upstream is offline and stdout remains MC
   assert.deepEqual(protocolErrors, []);
 });
 
-test('discovers only 11 execution/account-record tools and preserves strict nested schemas, annotations and metadata', async t => {
+test('discovers only the allowlisted paper tools and preserves strict nested schemas, annotations and metadata', async t => {
   const fixture = await upstream(t); const { client } = await local(t, fixture);
   assert.equal(fixture.requests.length, 0, 'local initialization must not contact upstream');
   const result = await client.listTools();
@@ -141,6 +141,24 @@ test('discovers only 11 execution/account-record tools and preserves strict nest
   assert.equal(fixture.calls.length, 0);
 });
 
+test('forwards the participant reads and describes stored standings rather than denying them', async t => {
+  const fixture = await upstream(t); const { client } = await local(t, fixture);
+  const listed = (await client.listTools()).tools.map(tool => tool.name);
+  for (const name of ['paper_get_participant_book', 'paper_list_participant_activity'])
+    assert.ok(PAPER_TOOLS.has(name) && listed.includes(name), `${name} must be forwarded`);
+  // Forwarded with the caller's arguments intact, including the opaque cursor the backend issues,
+  // because the bridge must not be a second place that decides what a cursor looks like.
+  const args = { competitionId: 'c'.repeat(24), entryId: 'd'.repeat(24), cursor: 'order:' + 'e'.repeat(24), limit: 25 };
+  await client.callTool({ name: 'paper_list_participant_activity', arguments: args });
+  assert.deepEqual(fixture.calls.at(-1), { name: 'paper_list_participant_activity', arguments: args });
+  // The instructions are the one place an agent reads before it decides what a number means, so the
+  // claim that standings do not exist is asserted gone rather than trusted to stay gone.
+  const instructions = client.getInstructions();
+  assert.match(instructions, /stored competition standings/);
+  assert.match(instructions, /no quote, price-preview or valuation tools/);
+  assert.doesNotMatch(instructions, /does not provide quotes, price previews, market values, equity/);
+});
+
 test('custom multi-leg orders preserve exact fields, stable IDs, results and domain errors', async t => {
   const fixture = await upstream(t); const { client } = await local(t, fixture);
   for (const name of ['paper_place_order']) {
@@ -153,9 +171,27 @@ test('custom multi-leg orders preserve exact fields, stable IDs, results and dom
   assert.equal(result.isError, true); assert.equal(result.structuredContent.echoed.domainFailure, true);
 });
 
+test('a configured credential is offered no sign-in tools and forwards the provisioning tools', async t => {
+  const fixture = await upstream(t); const { client } = await local(t, fixture);
+  // The bridge cannot tell the two token kinds apart — it validates the shared `paper_` shape and
+  // the backend decides what the credential may do — so this pins the part that is the bridge's:
+  // a configured credential is never offered browser sign-in, and the tools a platform token is the
+  // only kind able to use are forwarded rather than dropped. Which of them a given credential can
+  // actually call is answered by the backend on the call.
+  const listed = (await client.listTools()).tools.map(tool => tool.name);
+  for (const name of ['paper_sign_in', 'paper_complete_sign_in']) assert.ok(!listed.includes(name), `${name} must not be offered when a credential is configured`);
+  for (const name of ['paper_create_account', 'paper_join_competition', 'paper_get_participant_book']) assert.ok(PAPER_TOOLS.has(name) && listed.includes(name), `${name} must be forwarded`);
+  const args = { name: 'Agent practice', requestId: 'agent-practice-1' };
+  await client.callTool({ name: 'paper_create_account', arguments: args });
+  assert.deepEqual(fixture.calls.at(-1), { name: 'paper_create_account', arguments: args });
+  assert.match(client.getInstructions(), /platform token carrying that scope/);
+});
+
 test('token file authentication handles private files, missing files and oversized files', async t => {
   const dir = await mkdtemp(join(tmpdir(), 'paper-mcp-test-')); t.after(() => rm(dir, { recursive: true, force: true }));
-  const tokenFile = join(dir, 'account.token'); await writeFile(tokenFile, `${TOKEN}\n`, { mode: 0o600 });
+  // Named for neither kind: both are configured the same way, and a file named after one of them
+  // reads as though the other does not belong here.
+  const tokenFile = join(dir, 'paper.token'); await writeFile(tokenFile, `${TOKEN}\n`, { mode: 0o600 });
   const fixture = await upstream(t);
   const client = new Client({ name: 'file-token-client', version: '1.0.0' });
   const transport = new StdioClientTransport({ command: process.execPath, args: [BIN], env: { PAPER_TRADING_TOKEN_FILE: tokenFile, PAPER_TRADING_MCP_URL: fixture.url }, stderr: 'pipe' });

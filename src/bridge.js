@@ -6,11 +6,18 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema, McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { VERSION } from './config.js';
 
+// The allowlist is the transport's boundary, not an authorization decision: the backend decides
+// what a credential may call and which tools it is even offered, and this only refuses to forward
+// anything outside the paper surface. So it names every paper tool the backend has, including the
+// ones no single credential can reach — a name missing here is a capability missing from every
+// agent, whatever the backend would have allowed.
 export const PAPER_TOOLS = new Set([
   'paper_list_accounts', 'paper_get_account', 'paper_list_positions', 'paper_list_orders',
   'paper_list_fills', 'paper_get_trading_rules', 'paper_get_option_chain',
   'paper_get_option_chain_page', 'paper_place_order', 'paper_cancel_order',
-  'paper_get_competition', 'paper_list_competitions', 'paper_create_account', 'paper_join_competition', 'paper_create_token', 'paper_list_tokens', 'paper_revoke_token', 'paper_sign_out',
+  'paper_get_competition', 'paper_list_competitions', 'paper_get_participant_book',
+  'paper_list_participant_activity', 'paper_create_account', 'paper_join_competition',
+  'paper_create_token', 'paper_list_tokens', 'paper_revoke_token', 'paper_sign_out',
 ]);
 
 class PublicBridgeError extends McpError {
@@ -25,8 +32,8 @@ export function safeFailure(error, { mutation = false, cancelled = false } = {})
   const status = Number(error?.code);
   let code = 'UPSTREAM_UNAVAILABLE';
   let message = 'The paper trading service could not complete the connection. Check connectivity and PAPER_TRADING_MCP_URL, then try a new request.';
-  if (status === 401) { code = 'AUTHENTICATION_FAILED'; message = 'The paper trading token was rejected or revoked. Create a new account token, update its secret, and restart this MCP server.'; }
-  else if (status === 403) { code = 'ACCESS_DENIED'; message = 'The paper trading service denied access. Check this token’s account and read/trade permissions.'; }
+  if (status === 401) { code = 'AUTHENTICATION_FAILED'; message = 'The paper trading token was rejected or revoked. Issue a new platform or account token in the dashboard, update its secret, and restart this MCP server. Tokens issued before the credential-kind cutover are refused.'; }
+  else if (status === 403) { code = 'ACCESS_DENIED'; message = 'The paper trading service denied access. Call paper_get_trading_rules to see this credential’s kind and permissions, then check the account, competition or scope the call names.'; }
   else if (status === 429) { code = 'RATE_LIMITED'; message = 'The paper trading service is busy. Wait before making another request.'; }
   else if (cancelled || error?.name === 'AbortError') { code = 'REQUEST_CANCELLED'; message = 'The request was cancelled.'; }
   else if (error?.name === 'TimeoutError' || status === ErrorCode.RequestTimeout) { code = 'REQUEST_TIMEOUT'; message = 'The paper trading request timed out. Check connectivity or increase PAPER_TRADING_TIMEOUT_MS.'; }
@@ -50,7 +57,7 @@ export function createBridge(configuration) {
   const connections = new Set();
   const server = new Server({ name: 'kh-paper-trading-local', version: VERSION }, {
     capabilities: { tools: {listChanged:true} },
-    instructions: 'This is a paper brokerage with optional browser-approved onboarding. Use paper_sign_in when starting without an account token. Account creation and competition entry need an approved management session; token management needs separate consent. Never ask for passwords or credentials in chat. It exposes stored cash, position quantities, cost basis, orders, and immutable fills, plus option contract metadata. It does not provide quotes, price previews, market values, equity, or profit-and-loss data to agent clients. Read paper_get_trading_rules before trading. The hosted server owns fills, collateral, cash and competition scores. Never invent execution prices. Submit a stable clientOrderId; if the connection fails, inspect orders and reuse that ID and the same arguments. This bridge never retries an order automatically.',
+    instructions: 'This is a paper brokerage with optional browser-approved onboarding. Use paper_sign_in when starting without a credential. What this connection may do is decided by the credential it carries: call paper_get_trading_rules for its kind, its scopes, and whether it can trade, open an account or join a competition. Opening an account or joining a competition needs a platform token carrying that scope, or an approved management session; token management needs separate consent. Never ask for passwords or credentials in chat. It exposes stored cash, position quantities, cost basis, orders, immutable fills and option contract metadata, plus stored competition standings — the equity, return, rank and valuation timestamp of each entry — and, for a competition you have entered, a fellow participant’s stored holdings and activity. There are no quote, price-preview or valuation tools and no live profit-and-loss lookup: a standing is the last recorded valuation with the time it was taken, not a current price, and an entry whose valuation is unusable reports null rather than a number. Read paper_get_trading_rules before trading. The hosted server owns fills, collateral, cash and competition scores. Never invent execution prices. Submit a stable clientOrderId; if the connection fails, inspect orders and reuse that ID and the same arguments. This bridge never retries an order automatically.',
   });
 
   async function discard(entry) {

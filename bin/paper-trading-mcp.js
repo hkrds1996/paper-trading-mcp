@@ -11,8 +11,8 @@ With no arguments, serve MCP over stdin/stdout for a local agent.
 
 With no credentials, use paper_sign_in and paper_complete_sign_in for browser approval.
 Credentials (optional; choose one; tokens never belong in command-line arguments):
-  PAPER_TRADING_TOKEN_FILE  Absolute path to a private account token file
-  PAPER_TRADING_TOKEN       Account-scoped token from the paper trading dashboard
+  PAPER_TRADING_TOKEN_FILE  Absolute path to a private token file
+  PAPER_TRADING_TOKEN       Platform or account-restricted token from the dashboard
 Optional:
   PAPER_TRADING_MCP_URL     Hosted endpoint override for self-hosting
   PAPER_TRADING_TIMEOUT_MS  1000–120000 milliseconds; default 30000
@@ -25,7 +25,7 @@ async function main() {
   if (args.length === 1 && ['--version', '-v'].includes(args[0])) { process.stdout.write(`${VERSION}\n`); return; }
   if (args.length && !(args.length === 1 && args[0] === '--check')) throw new ConfigurationError('Unknown arguments. Use --help. Supply credentials through a token file or environment, never command-line arguments.');
   const configuration=await loadConfiguration();
-  if(args[0]==='--check' && !configuration.token) throw new ConfigurationError('--check requires an account token; otherwise start MCP and use paper_sign_in.');
+  if(args[0]==='--check' && !configuration.token) throw new ConfigurationError('--check requires a token; otherwise start MCP and use paper_sign_in.');
   const bridge = createBridge(configuration);
   let stopping;
   const stop = () => {

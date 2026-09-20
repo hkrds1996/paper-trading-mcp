@@ -40,7 +40,10 @@ export async function loadConfiguration(env = process.env) {
   const tokenValue = env.PAPER_TRADING_TOKEN;
   if (tokenFile !== undefined && tokenValue !== undefined) throw new ConfigurationError('Set only one of PAPER_TRADING_TOKEN_FILE or PAPER_TRADING_TOKEN.');
   const token = tokenFile ? await readTokenFile(tokenFile) : tokenValue?.trim();
-  if (token !== undefined && !/^paper_[A-Za-z0-9_-]{43}$/.test(token)) throw new ConfigurationError('The paper trading token format is invalid. Create an account-scoped access token in the dashboard.');
+  // Both kinds are issued in this shape, so the check accepts either and the message names both:
+  // a platform token is the default for an agent and the one a reader who has only seen the
+  // older account-token instructions is most likely to think they cannot use here.
+  if (token !== undefined && !/^paper_[A-Za-z0-9_-]{43}$/.test(token)) throw new ConfigurationError('The paper trading token format is invalid. Create a platform token or an account-restricted token in the dashboard and copy its secret exactly once.');
   const timeoutValue = env.PAPER_TRADING_TIMEOUT_MS ?? '30000';
   const timeoutMs = Number(timeoutValue);
   if (!/^\d+$/.test(timeoutValue) || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 120000) throw new ConfigurationError('PAPER_TRADING_TIMEOUT_MS must be an integer from 1000 through 120000.');
