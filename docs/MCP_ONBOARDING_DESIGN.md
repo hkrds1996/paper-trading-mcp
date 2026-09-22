@@ -1,6 +1,6 @@
 # MCP onboarding and backend market data
 
-Status: proposed implementation, not shipped in MCP 0.2.1.
+Status: design record, partly shipped. The management session proposed below shipped in MCP 0.3.0 as a browser approval protocol for the local stdio bridge, and is current as of 0.4.1; 0.2.1 was the release this document was written against. Two proposals were not adopted and are marked in place rather than deleted, so the record still shows what was considered: the HTTP authorization-framework approach under "Proposed user flow", and `paper_create_competition` under "Tool scope".
 
 ## Backend placement
 
@@ -14,7 +14,7 @@ The published stdio MCP supports trading and records after a paper account and a
 
 Superseded in part by the platform agent token design in the backend repository, which adds a second kind rather than widening this one: a platform token carries the owner's accounts and an explicit scope per capability, so provisioning no longer requires a management session. The account token keeps exactly the restrictions described here.
 
-The missing capability is a user-authorized management session, separate from an account trading token. A human must sign in and approve management permissions before the agent can provision resources on their behalf. KH website registration versus existing-user sign-in is awaiting the owner's clarification.
+The missing capability is a user-authorized management session, separate from an account trading token. A human must sign in and approve management permissions before the agent can provision resources on their behalf. **Resolved:** existing-user sign-in only. The approver must already hold a KH account, and no website-registration flow was introduced.
 
 ## Proposed user flow
 
@@ -24,7 +24,7 @@ The missing capability is a user-authorized management session, separate from an
 4. Optionally issue/revoke a limited account trading token for another agent. The authenticated management session already identifies the current user; creating a child token is not a prerequisite for every operation.
 5. Store credentials through the client/local credential facility. Do not ask users to put passwords, provider keys, or long-lived management tokens in tool arguments.
 
-For HTTP authorization use the MCP authorization framework with authorization-code/PKCE, resource-bound access tokens, explicit consent, short expiry, secure refresh rotation and revocation. Stdio itself remains a local transport; its upstream client obtains credentials separately. Existing PAPER_TRADING_TOKEN and PAPER_TRADING_TOKEN_FILE setups remain supported with their original account boundaries.
+For HTTP authorization use the MCP authorization framework with authorization-code/PKCE, resource-bound access tokens, explicit consent, short expiry, secure refresh rotation and revocation. **Not adopted.** What shipped is a dedicated browser approval protocol for the local stdio bridge; it is not an implementation of the MCP HTTP OAuth authorization-server specification, and remote HTTP connections keep bearer-token authentication. Stdio itself remains a local transport; its upstream client obtains credentials separately. Existing PAPER_TRADING_TOKEN and PAPER_TRADING_TOKEN_FILE setups remain supported with their original account boundaries.
 
 ## Tool scope
 
@@ -36,11 +36,13 @@ For HTTP authorization use the MCP authorization framework with authorization-co
 | paper_create_token | Separate token-issuance permission; owned account only; child scopes cannot exceed the grant |
 | paper_list_tokens | Metadata only; never return token hashes or old secrets |
 | paper_revoke_token | Own delegated/account tokens only; explicit write action |
-| paper_create_competition | User management permission for unlisted; saved admin role additionally required for public |
+| paper_create_competition | **Not implemented, and not planned.** No competition-creation tool exists in the shipped surface: public competition creation stays admin-only through the website. The row is kept because this design proposed it: the table is a proposal, not a description of the 20 tools the bridge allowlists. |
 
 Token issuance should provide a secure one-time handoff or store the child credential locally and return metadata, rather than automatically printing it into model transcripts. Grant revocation must also define the fate of delegated tokens; children must not outlive the authority that issued them. Use idempotency for account and token creation to avoid duplicates after ambiguous timeouts.
 
 ## Implementation acceptance checks
+
+These are the checks this proposal set for itself, and most are enforced in the backend rather than in this package — consent restrictions, ownership, revocation, scope isolation and the shared quota are covered by the backend's `PaperOnboarding` suite, not by the two tests in `test/onboarding.test.js` here. Two are not exercised anywhere: the PKCE check and the role-spoofing check for competition creation both belong to the parts marked not adopted above.
 
 - Existing account tokens cannot gain management capabilities or cross account boundaries.
 - A newly authorized user with no paper accounts can create one and join a public competition using the local MCP.
